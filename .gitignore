@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 프로그램이 생성하는 워드클라우드 결과 이미지
+/output/
+
+# 가상환경
+.venv/
+venv/
+env/
+
+# OS / 에디터
+.DS_Store
+.idea/
+.vscode/
