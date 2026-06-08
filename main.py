@@ -4,6 +4,7 @@ import sys # 윈도우or맥 내 컴퓨터 운영체제를 확인하는 도구
 import time #빠른 크롤링을 위한 시간을 재는 타이머 도구
 from collections import Counter # 크롤링한 결과 각 단어가 몇 번 나오는지 세어주는 도구
 import matplotlib.pyplot as plt # 그려진 워드클라우드를 이미지로 띄우는 도구
+from matplotlib import font_manager # 화면 팝업 제목의 한글이 깨지지 않도록 폰트를 등록하는 도구
 from wordcloud import WordCloud # 워드클라우드(글자 크기를 빈도별로 다르게 구름모양으로 시각화) 도구
 import requests # 네이버 인터넷에서 HTML 소스코드를 받아오는 도구
 from bs4 import BeautifulSoup # 받아온 소스코드에서 뉴스 제목만 골라내는 도구
@@ -12,12 +13,25 @@ from konlpy.tag import Okt # 한국어 문장에서 명사만 골라내는 형�
 
 # 1. 환경 설정 및 한글 폰트 지정
 def get_font_path():
+    # OS별 한글 폰트 후보 경로 목록 (실제로 존재하는 첫 번째 경로를 사용)
     if sys.platform.startswith('win'):
-        return 'C:/Windows/Fonts/malgun.ttf'# 윈도우라면 맑은 고딕
+        candidates = ['C:/Windows/Fonts/malgun.ttf']  # 윈도우: 맑은 고딕
     elif sys.platform.startswith('darwin'):
-        return '/System/Library/Fonts/Supplemental/AppleGothic.ttf'#맥이면 애플고딕
+        candidates = [  # 맥: 애플고딕
+            '/System/Library/Fonts/Supplemental/AppleGothic.ttf',
+            '/Library/Fonts/AppleGothic.ttf',
+        ]
     else:
-        return None # 둘 다 아니면 자체 기본 폰트
+        candidates = [  # 리눅스(깃허브 코드스페이스 등): 나눔/노토 한글 폰트
+            '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
+            '/usr/share/fonts/truetype/nanum/NanumBarunGothic.ttf',
+            '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+            '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+        ]
+    for path in candidates:  # 후보 중 실제 설치된 폰트를 찾으면 그 경로를 반환
+        if os.path.exists(path):
+            return path
+    return None  # 한글 폰트를 못 찾으면 None (기본 폰트라 한글이 깨질 수 있음)
 
 
 FONT_PATH = get_font_path() # 찾아낸 폰트 경로를 FONT_PATH 라는 변수에 저장
@@ -52,7 +66,7 @@ def crawl_naver_news(keyword, max_titles=60):
         url = f"https://search.naver.com/search.naver?where=news&query={requests.utils.quote(keyword)}&sm=tab_opt&sort=1&start={start_num}"
        
         try: # 비기능 요구사항: 네트워크 오류 예외 처리. 네이버 주소에 접속 요청 (5초 동안 응답 없으면 끝)
-            response = requests.get(url, headers=headers, timeout=5)
+            response = requests.get(url, headers=headers, timeout=3)  # 5초 예산 보호: 단일 요청 대기 상한 3초
             if response.status_code != 200: # 응답 번호가 200(정상)이 아니면 (ex) 403 에러 등)
                 print(f"네이버 서버 응답 오류 (코드: {response.status_code})")
                 break
@@ -101,7 +115,9 @@ def crawl_naver_news(keyword, max_titles=60):
 # 3. 데이터 전처리 및 명사 골라내기
 def preprocess_and_extract_nouns(titles):
     print("데이터 전처리 및 명사 추출 시작...")
-    os.environ['JAVA_HOME']=r'C:\Program Files\Java\jdk-26.0.1' # 자바 실행을 위한
+    # 자바 실행 경로(JAVA_HOME) — 윈도우에서만 강제 지정 (리눅스/맥의 기존 설정을 덮어쓰지 않도록)
+    if sys.platform.startswith('win'):
+        os.environ['JAVA_HOME'] = r'C:\Program Files\Java\jdk-26.0.1'
     okt = Okt() # 오픈소스인 한국어 형태소 분석기(Okt) 실행
     all_nouns = []  # 걸러진 명사들만 담을 리스트 생성
    
@@ -135,6 +151,9 @@ def generate_wordcloud(word_counts, keyword):
         return
        
     print("워드클라우드 이미지 생성 중...")
+
+    if FONT_PATH is None:  # 비기능 요구사항(한글 깨짐 방지): 한글 폰트를 못 찾았으면 경고
+        print("경고: 한글 폰트를 찾지 못했습니다. 글자가 깨질 수 있습니다. (리눅스: 'sudo apt install fonts-nanum' 후 다시 실행하세요)")
    
     wc = WordCloud(
         font_path=FONT_PATH, # 위에서 설정한 한글 폰트
@@ -159,6 +178,15 @@ def generate_wordcloud(word_counts, keyword):
    
     # 깃허브 코드스페이스에서는 팝업 창이 안 뜰 수 있으므로 저장 안내
     print("팁: 왼쪽 파일 목록에 생성된 'output' 폴더 안의 png 파일을 클릭하면 이미지를 직접 볼 수 있습니다!")
+
+    # 요구사항 반영(시각화 출력) : 생성된 워드클라우드를 화면 팝업으로 띄움
+    if FONT_PATH:  # matplotlib 제목 글자도 한글이 깨지지 않도록 폰트 지정
+        plt.rcParams['font.family'] = font_manager.FontProperties(fname=FONT_PATH).get_name()
+    plt.figure(figsize=(8, 6))
+    plt.imshow(wc, interpolation='bilinear')  # 워드클라우드 이미지를 화면에 표시
+    plt.axis('off')  # 축/눈금 숨김
+    plt.title(f"'{keyword}' 뉴스 워드클라우드")
+    plt.show()  # 팝업 창 출력 (GUI 환경에서 표시됨)
 
 
 #  메인 실행
