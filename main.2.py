@@ -5,10 +5,10 @@
 #  - 전체 흐름: 한글폰트 설정 → 크롤링 → 전처리/명사추출 → 시각화/저장
 # =====================================================================
 
-import os # os: 폴더 생성(makedirs), 경로 존재 확인(path.exists), 환경변수(JAVA_HOME) 설정에 쓰는 운영체제 모듈
+import os # os: 폴더 생성, 경로 존재 확인, 환경변수(JAVA) 설정에 쓰는 운영체제 모듈
 import re  # re: 정규표현식 모듈. 이메일/특수문자 제거, 파일명 금지문자 치환에 사용
-import sys  # sys: 운영체제 종류 확인(sys.platform)과 프로그램 강제 종료(sys.exit)에 사용
-import time  # time: 시작 시각 기록·경과시간 측정(5초 제한), 요청 사이 대기(sleep)에 사용
+import sys  # sys: 운영체제 종류 확인, 프로그램 강제 종료에 사용
+import time  # time: 시작 시각 기록·경과시간 측정(5초 제한), 요청 사이 대기에 사용
 from collections import Counter  # Counter: 리스트 안 각 단어가 몇 번 나오는지 자동으로 세어주는 도구
 import matplotlib.pyplot as plt  # plt: 완성된 워드클라우드를 화면 팝업 창으로 띄우는 시각화 도구
 from matplotlib import font_manager  # font_manager: 팝업 제목의 한글이 깨지지 않도록 폰트를 등록하는 도구
